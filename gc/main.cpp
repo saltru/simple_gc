@@ -11,12 +11,14 @@ public:
 
 	A()
 	{
+		cout << "A: ctor\n";
 		a = 5;
 		s = new char[5]{ 'a', 'b', 'c', 'd', '\0'};
 	}
 
 	~A()
 	{
+		cout << "A: dtor\n";
 		if (s)
 			delete[] s;
 	}
@@ -29,12 +31,23 @@ int main(int argc, char** argv)
 
 	A* a = new A();
 
-	cout << "access to s...\n";
-	cout << a->s << endl;
-	cout << "success!\n";
+	vector<A*> array;
+	for (int i = 0; i < 10; ++i)
+	{
+		array.push_back(new A);
+	}
 
+	GarbageCollector::getInstance().showCurrentObjects();
 	
 	delete a;
+
+	GarbageCollector::getInstance().forceDeleteObject(array[0]);
+
+	GarbageCollector::getInstance().showCurrentObjects();
+
+	array.push_back(new A);
+
+	GarbageCollector::getInstance().showCurrentObjects();
 
 	unique_ptr<A> a_ptr(new A);
 
