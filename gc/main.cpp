@@ -23,6 +23,13 @@ public:
 
 	void printData()
 	{
+		//Check if this object invalidated
+		if (isMarkForDelete())
+		{
+			cout << "Object type A ptr = " << this << " INVALIDATED!\n";
+			return;
+		}
+
 		cout << "Object type A ptr = " << this << " contains:\n";
 		cout << "int a = " << this->a << endl;
 		cout << "char[] s = " << this->s << endl;
@@ -56,6 +63,7 @@ int main(int argc, char** argv)
 	cout << endl;
 	//Try to delete a, dtor is called, but memory has not freed
 	delete a;
+	a->printData();
 
 	cout << endl;
 	//Forced deletion, dtor + memory free
