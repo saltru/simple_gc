@@ -17,7 +17,7 @@ GarbageCollector::~GarbageCollector()
 
 	for (auto obj : objects)
 	{
-		cout << "GC: Destroying object ptr = " << (size_t)obj << endl;
+		cout << "GC: Destroying object ptr = " << obj << endl;
 		obj->~GarbageCollectedObject();
 		::operator delete(obj);
 	}
@@ -28,7 +28,9 @@ bool GarbageCollector::changeMaxObjects(unsigned int newMaxObjects)
 {
 	if (newMaxObjects <= objects.size())
 		return false;
+
 	this->maxObjects = newMaxObjects;
+	return true;
 }
 
 //Should be called before "new" at GarbageCollectorObject
@@ -36,12 +38,12 @@ bool GarbageCollector::checkMaxObjects()
 {
 	if (objects.size() == maxObjects)
 	{
-		cout << "GC: maxObjects limit reached (" << maxObjects << ")";
+		cout << "GC: New allocation: maxObjects limit reached (" << maxObjects << ")\n";
 		//Trying to delete some objects
 		doGarbageCollection();
 		if (objects.size() == maxObjects)
 		{
-			cout << "GC: Nothing to delete\n";
+			cout << "GC: Nothing to delete. Allocation failed.\n";
 			return false;
 		}
 	}
@@ -50,17 +52,20 @@ bool GarbageCollector::checkMaxObjects()
 }
 
 //Pushing already instanciated object to the vector of objects
-void GarbageCollector::newObject(GarbageCollectedObject* ptr)
+void* GarbageCollector::newObject(size_t size)
 {
-	objects.push_back(ptr);
-	cout << "GC: New object " << objects.size() << " ptr = " << (size_t)ptr << endl;
+	void* ptr = ::operator new(size);
+	objects.push_back((GarbageCollectedObject*)ptr);
+	cout << "GC: New object in pool ptr = " << ptr << endl;
+
+	return ptr;
 }
 
 //forced delete with memory freeing
 void GarbageCollector::forceDeleteObject(GarbageCollectedObject* ptr)
 {
 	if (ptr == nullptr) {
-		cout << "GC: Trying to force deletion of nullptr\n";
+		cout << "GC: Failed to do force deletion of nullptr\n";
 		return;
 	}
 
@@ -69,7 +74,8 @@ void GarbageCollector::forceDeleteObject(GarbageCollectedObject* ptr)
 		if (*it == ptr)
 		{
 			GarbageCollectedObject* obj = *it;
-			cout << "GC: Destroying object ptr = " << (size_t)obj << endl;
+			cout << "GC: Forced destroying object ptr = " << obj << endl;
+			obj->~GarbageCollectedObject();
 			::operator delete(obj);
 			objects.erase(it);
 			break;
@@ -86,9 +92,11 @@ vector<GarbageCollectedObject*> GarbageCollector::currentObjects()
 void GarbageCollector::showCurrentObjects()
 {
 	cout << "GC: Current GC-managed objects (maxObjects = " << maxObjects << "):\n";
+
+	int i = 0;
 	for (auto obj : objects)
 	{
-		cout << "Object ptr = " << (size_t)obj << " toDelete = " << ((obj->isMarkForDelete()) ? "true" : "false") << endl;
+		cout << i++ << ": Object ptr = " << obj << " markToDelete = " << ((obj->isMarkForDelete()) ? "true" : "false") << endl;
 	}
 }
 
@@ -103,13 +111,14 @@ void GarbageCollector::doGarbageCollection()
 			[](GarbageCollectedObject* obj) { return obj->isMarkForDelete(); }
 		);
 
-		//Nothing found
+		//Nothing else found
 		if (objToDelete == objects.end())
 			break;
 		
 		//Delete found object
 		GarbageCollectedObject* obj = *objToDelete;
-		cout << "GC: Destroying object ptr = " << (size_t)obj << endl;
+		cout << "GC: Destroying object ptr = " << obj << endl;
+		obj->~GarbageCollectedObject();
 		::operator delete(obj);
 		objects.erase(objToDelete);
 	}
@@ -128,11 +137,8 @@ void* GarbageCollectedObject::operator new (size_t size)
 
 	if (gc.checkMaxObjects())
 	{
-
-		void* ptr = ::operator new(size);
-		gc.newObject((GarbageCollectedObject*)ptr);
-
-		cout << "GC OBJ: New ptr = " << (size_t)ptr << endl;
+		void* ptr = gc.newObject(size);
+		cout << "GC OBJ: New ptr = " << ptr << endl;
 
 		return ptr;
 	}
@@ -140,12 +146,13 @@ void* GarbageCollectedObject::operator new (size_t size)
 	return nullptr;
 }
 
-//just mark an object to deletion
+//mark an object to deletion from memory
+//destructor will be called instead - by design of "delete" operator
 void GarbageCollectedObject::operator delete (void* ptr)
 {
 	//marked to deletion
 	((GarbageCollectedObject*)ptr)->markForDelete = true;
-	cout << "GC OBJ: Marked to delete ptr " << (size_t)ptr << endl;	
+	cout << "GC OBJ: Marked to delete ptr " << ptr << endl;	
 }
 
 bool GarbageCollectedObject::isMarkForDelete()

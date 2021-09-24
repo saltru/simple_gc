@@ -7,7 +7,7 @@ using namespace std;
 class GarbageCollectedObject;
 
 //Main GC object (singleton) do all real memory allocation/freeing
-//Now implemented as classic Meyers' signleton (thread unsafe in C++ < 11)
+//Note: Thread unsafe!
 class GarbageCollector
 {
 private:
@@ -33,7 +33,7 @@ public:
 	bool changeMaxObjects(unsigned int maxObjects);
 	bool checkMaxObjects();
 
-	void newObject(GarbageCollectedObject* ptr);
+	void* newObject(size_t size);
 	void forceDeleteObject(GarbageCollectedObject* ptr); //forced delete with memory freeing
 
 	vector<GarbageCollectedObject*> currentObjects(); //returns vector of the allocated object ptrs
@@ -49,12 +49,12 @@ class GarbageCollectedObject
 private:
 	//true if marked for deletion by operator delete
 	bool markForDelete;
+	
 public:
 	GarbageCollectedObject() : markForDelete(false) {}
-	virtual ~GarbageCollectedObject() {};
+	virtual ~GarbageCollectedObject() { };
 
-	//Overloaded new/delete are being used for pushing ptr into main GC object, 
-	//instead of real memory allocation/freeing.
+	//Overloaded new/delete are being used for pushing ptr into main GC object
 	void* operator new (size_t size);
 	void operator delete (void* ptr);
 
